@@ -39,6 +39,10 @@ import com.google.android.gms.location.LocationSettingsStatusCodes;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.concurrent.CompletableFuture;
 
 import android.Manifest;
@@ -58,6 +62,8 @@ public class MainActivity extends AppCompatActivity {
     private LocationRequest locationRequest;
     private MyServer myServer;
 
+    Handler handler = new Handler();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -66,8 +72,8 @@ public class MainActivity extends AppCompatActivity {
         e2 = findViewById(R.id.etData);
 
         AddressText = findViewById(R.id.addressText);
-        LocationButton = findViewById(R.id.locationButton);
-
+        //LocationButton = findViewById(R.id.locationButton);
+/*
         locationRequest = LocationRequest.create();
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         locationRequest.setInterval(5000);
@@ -108,10 +114,23 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-
+*/
         myServer = new MyServer(this);
 
         new Thread(myServer).start();
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final String publicIP = getPublicIP();
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        AddressText.setText("IP pública del servidor: " + publicIP);
+                    }
+                });
+            }
+        }).start();
     }
 
     private void turnOnGPS() {
@@ -164,6 +183,28 @@ public class MainActivity extends AppCompatActivity {
         isEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
         return isEnabled;
 
+    }
+
+    private String getPublicIP() {
+        String ip = null;
+        try {
+            URL url = new URL("https://api.ipify.org");
+            HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+            urlConnection.setRequestMethod("GET");
+            urlConnection.connect();
+            BufferedReader in = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
+            String inputLine;
+            StringBuffer response = new StringBuffer();
+
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            in.close();
+            ip = response.toString();  // La IP pública obtenida
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return ip;
     }
 
     class MyServer implements Runnable {
