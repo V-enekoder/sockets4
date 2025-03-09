@@ -63,8 +63,6 @@ public class MainActivity extends AppCompatActivity {
     EditText e1;
 
     private TextView AddressText;
-    //private Button LocationButton;
-    //private LocationRequest locationRequest;
     private MyServer myServer;
 
     Handler handler = new Handler();
@@ -93,59 +91,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }).start();
     }
-/*
-    private void turnOnGPS() {
-
-        LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
-                .addLocationRequest(locationRequest);
-        builder.setAlwaysShow(true);
-
-        Task<LocationSettingsResponse> result = LocationServices.getSettingsClient(getApplicationContext())
-                .checkLocationSettings(builder.build());
-
-        result.addOnCompleteListener(new OnCompleteListener<LocationSettingsResponse>() {
-            @Override
-            public void onComplete(@NonNull Task<LocationSettingsResponse> task) {
-
-                try {
-                    LocationSettingsResponse response = task.getResult(ApiException.class);
-                    Toast.makeText(MainActivity.this, "GPS is already tured on", Toast.LENGTH_SHORT).show();
-
-                } catch (ApiException e) {
-
-                    switch (e.getStatusCode()) {
-                        case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
-
-                            try {
-                                ResolvableApiException resolvableApiException = (ResolvableApiException)e;
-                                resolvableApiException.startResolutionForResult(MainActivity.this,2);
-                            } catch (IntentSender.SendIntentException ex) {
-                                ex.printStackTrace();
-                            }
-                            break;
-
-                        case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
-                            //Device does not have location
-                            break;
-                    }
-                }
-            }
-        });
-    }
-
-    private boolean isGPSEnabled() {
-        LocationManager locationManager = null;
-        boolean isEnabled = false;
-
-        if (locationManager == null) {
-            locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        }
-
-        isEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-        return isEnabled;
-
-    }
-*/
 private String getLocalIpAddress() {
     try {
         for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
@@ -234,7 +179,7 @@ private String getLocalIpAddress() {
 
     public void onClickSend(View v) {
         BackgroundTask b = new BackgroundTask(this);
-        b.execute(e1.getText().toString()/*, e2.getText().toString()*/);
+        b.execute(e1.getText().toString());
     }
 
     class BackgroundTask extends AsyncTask<String, Void, String> {
@@ -251,15 +196,11 @@ private String getLocalIpAddress() {
         @Override
         protected String doInBackground(String... params) {
             ip = params[0];
-            //message = params[1];
 
             try {
                 s = new Socket(ip, 9700);
                 dos = new DataOutputStream(s.getOutputStream());
                 dis = new DataInputStream(s.getInputStream());
-
-                //dos.writeUTF(message);
-                //dos.flush();  // Asegurar que el mensaje se envía antes de esperar respuesta
 
                 // Esperar respuesta del servidor
                 String serverResponse = dis.readUTF();
