@@ -42,7 +42,12 @@ import com.google.android.gms.tasks.Task;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.net.URL;
+import java.util.Enumeration;
 import java.util.concurrent.CompletableFuture;
 
 import android.Manifest;
@@ -55,11 +60,11 @@ import java.net.Socket;
 
 public class MainActivity extends AppCompatActivity {
 
-    EditText e1, e2;
+    EditText e1;
 
     private TextView AddressText;
-    private Button LocationButton;
-    private LocationRequest locationRequest;
+    //private Button LocationButton;
+    //private LocationRequest locationRequest;
     private MyServer myServer;
 
     Handler handler = new Handler();
@@ -69,52 +74,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         e1 = findViewById(R.id.etDireccionIP);
-        e2 = findViewById(R.id.etData);
 
         AddressText = findViewById(R.id.addressText);
-        //LocationButton = findViewById(R.id.locationButton);
-/*
-        locationRequest = LocationRequest.create();
-        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        locationRequest.setInterval(5000);
-        locationRequest.setFastestInterval(2000);
-
-        LocationButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    if(ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION)
-                        == PackageManager.PERMISSION_GRANTED){
-                        if(isGPSEnabled()){
-                            LocationServices.getFusedLocationProviderClient(MainActivity.this)
-                                    .requestLocationUpdates(locationRequest, new LocationCallback() {
-                                        @Override
-                                        public void onLocationResult(@NonNull LocationResult locationResult) {
-                                            super.onLocationResult(locationResult);
-
-                                            LocationServices.getFusedLocationProviderClient(MainActivity.this)
-                                                    .removeLocationUpdates(this);
-
-                                            if (locationResult != null && locationResult.getLocations().size() > 0){
-                                                int index = locationResult.getLocations().size() - 1;
-                                                double latitude = locationResult.getLocations().get(index).getLatitude();
-                                                double longitude = locationResult.getLocations().get(index).getLongitude();
-
-                                                AddressText.setText("Latitude: "+ latitude + "\n" + "Longitude: "+ longitude);
-                                            }
-                                        }
-                                    }, Looper.getMainLooper());
-                        }else{
-                            turnOnGPS();
-                        }
-                    }
-                    else{
-                        requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
-                    }
-                }
-            }
-        });
-*/
         myServer = new MyServer(this);
 
         new Thread(myServer).start();
@@ -122,17 +83,17 @@ public class MainActivity extends AppCompatActivity {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                final String publicIP = getPublicIP();
+                final String localIP = getLocalIpAddress(); // Cambio aquí
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
-                        AddressText.setText("IP pública del servidor: " + publicIP);
+                        e1.setText(localIP);
                     }
                 });
             }
         }).start();
     }
-
+/*
     private void turnOnGPS() {
 
         LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
@@ -184,29 +145,23 @@ public class MainActivity extends AppCompatActivity {
         return isEnabled;
 
     }
-
-    private String getPublicIP() {
-        String ip = null;
-        try {
-            URL url = new URL("https://api.ipify.org");
-            HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
-            urlConnection.setRequestMethod("GET");
-            urlConnection.connect();
-            BufferedReader in = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
-            String inputLine;
-            StringBuffer response = new StringBuffer();
-
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
+*/
+private String getLocalIpAddress() {
+    try {
+        for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
+            NetworkInterface intf = en.nextElement();
+            for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+                InetAddress inetAddress = enumIpAddr.nextElement();
+                if (!inetAddress.isLoopbackAddress() && inetAddress instanceof Inet4Address) {
+                    return inetAddress.getHostAddress();
+                }
             }
-            in.close();
-            ip = response.toString();  // La IP pública obtenida
-        } catch (IOException e) {
-            e.printStackTrace();
         }
-        return ip;
+    } catch (SocketException ex) {
+        Log.e("IP Address", ex.toString());
     }
-
+    return null;
+}
     class MyServer implements Runnable {
         ServerSocket ss;
         Socket mySocket;
@@ -238,10 +193,10 @@ public class MainActivity extends AppCompatActivity {
                     dis = new DataInputStream(mySocket.getInputStream());
                     dos = new DataOutputStream(mySocket.getOutputStream());
 
-                    String message = dis.readUTF();
+                    //String message = dis.readUTF();
 
                     // Mostrar en el TextView
-                    handler.post(() -> ((MainActivity) context).AddressText.setText("Solicitud recibida"));
+                    handler.post(() -> ((MainActivity) context).AddressText.setText("Usuario Conectado"));
 
                     dos.writeUTF("El servidor se encuentra en: " + lastKnownLocation);
 
@@ -279,14 +234,14 @@ public class MainActivity extends AppCompatActivity {
 
     public void onClickSend(View v) {
         BackgroundTask b = new BackgroundTask(this);
-        b.execute(e1.getText().toString(), e2.getText().toString());
+        b.execute(e1.getText().toString()/*, e2.getText().toString()*/);
     }
 
     class BackgroundTask extends AsyncTask<String, Void, String> {
         Socket s;
         DataOutputStream dos;
         DataInputStream dis;
-        String ip, message;
+        String ip;
         Handler handler = new Handler();
 
         private Context context;
@@ -296,15 +251,15 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected String doInBackground(String... params) {
             ip = params[0];
-            message = params[1];
+            //message = params[1];
 
             try {
                 s = new Socket(ip, 9700);
                 dos = new DataOutputStream(s.getOutputStream());
                 dis = new DataInputStream(s.getInputStream());
 
-                dos.writeUTF(message);
-                dos.flush();  // Asegurar que el mensaje se envía antes de esperar respuesta
+                //dos.writeUTF(message);
+                //dos.flush();  // Asegurar que el mensaje se envía antes de esperar respuesta
 
                 // Esperar respuesta del servidor
                 String serverResponse = dis.readUTF();
